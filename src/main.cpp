@@ -1,111 +1,110 @@
-﻿/*
-Raylib example file.
-This is an example main file for a simple raylib project.
-Use this as a starting point or replace it with your code.
-
-by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
-
-*/
-
 #include "raylib.h"
-#include "resource_dir.h"
+
+#include "resource_dir.h"	
+
 #include <vector>
 
-	const int screenWidth = 800;
-	const int screenHeight = 800;
+const int screenWidth = 800;
+const int screenHeight = 800;
 
-	const int gridWidth = 80;
-	const int gridHeight = 80;
-	
-	const float cellWidth = screenWidth / (float)gridWidth;
-	const float cellHeight = screenHeight / (float)gridHeight;
+const int gridWidth = 80;
+const int gridHeight = 80;
 
-	using Cells = std::vector<bool>;
+const int cellWidth = (float)screenWidth / float(gridWidth);
+const int cellHeight = screenHeight / float(gridHeight);
 
-	bool readCell(int x, int y, const Cells& cells)
-	{
-		if (x < 0) x = gridWidth - 1;
-		if (x >= gridWidth -1) x = 0;
-		if (y < 0) y = gridWidth - 1;
-		if (y >= gridWidth -1) y = 0;
+using Cells = std::vector<bool>;
 
-		return cells[x + (y * gridWidth)];
+bool ReadCell(int x, int y, const Cells& cells)
+{
+	if (x < 0) x = gridWidth - 1;
+	else if (x > gridWidth - 1) x = 0;
+
+	if (y < 0) y = gridHeight - 1;
+	else if (y > gridHeight - 1) y = 0;
+
+	return cells[x + (y * gridWidth)];
+}
+
+bool WriteCell(int x, int y, bool value, Cells& cells) {
+	if (x < 0) x = gridWidth - 1;
+	else if (x > gridWidth - 1) x = 0;
+
+	if (y < 0) y = gridHeight - 1;
+	else if (y > gridHeight - 1) y = 0;
+
+	return cells[x + y * gridWidth] = value;
+}
+
+void RandomizeCells(Cells& cells) {
+	for (int i = 0; i < (int)cells.size(); i++) {
+		cells[i] = GetRandomValue(0, 1) != 0;
 	}
+}
 
-	void writeCell(int x, int y, Cells& cells,  bool value)
-	{
-		cells[x + (y * gridWidth)] = value;
-	}
+int CountAliveNeighbors(int x, int y, const Cells& cells) {
+	int count = 0;
+	if (ReadCell(x - 1, y + 1, cells)) count++;
+	if (ReadCell(x + 0, y + 1, cells)) count++;
+	if (ReadCell(x + 1, y + 1, cells)) count++;
+	if (ReadCell(x - 1, y + 0, cells)) count++;
+	if (ReadCell(x + 1, y + 0, cells)) count++;
+	if (ReadCell(x - 1, y - 1, cells)) count++;
+	if (ReadCell(x + 0, y - 1, cells)) count++;
+	if (ReadCell(x + 1, y - 1, cells)) count++;
 
-	void randomizeCells(Cells& cells)
-	{
-		for (int y = 0; y < gridHeight; ++y)
-		{
-			for (int x = 0; x < gridWidth; ++x)
-			{
-				writeCell(x, y, cells, GetRandomValue(0, 1) == 1);
-			}
-		}
-	}
-
-	int countLiveNeighbors(int x, int y, const Cells& cells)
-	{
-		int count = 0;
-		if (readCell(x-1, y-1, cells)) ++count;
-		if (readCell(x+1, y - 1, cells)) ++count;
-		if (readCell(x+1, y + 1, cells)) ++count;
-		if (readCell(x-1, y + 1, cells)) ++count;
-
-		if (readCell(x-1, y + 0, cells)) ++count;
-		if (readCell(x+1, y - 0, cells)) ++count;
-		if (readCell(x+0, y - 1, cells)) ++count;
-		if (readCell(x-0, y + 1, cells)) ++count;
-		return count;
-	}
+	return count;
+}
 
 int main ()
 {
-	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+	int targetFPS = 10;
 
-	InitWindow(screenWidth, screenHeight, "Game of Life");
-
+	InitWindow(screenWidth, screenHeight, "GameOfLife");
 
 	SearchAndSetResourceDir("resources");
+	
+	Cells currentGeneration(gridWidth * gridHeight);
+	Cells nextGeneration(gridWidth * gridHeight);
 
-	Cells currentGeneration(gridWidth * gridHeight, false);
-
-	Cells nextGeneration(gridWidth * gridHeight, false);
-
-	randomizeCells(currentGeneration);
-
-	while (!WindowShouldClose())	
+	RandomizeCells(currentGeneration);
+	while (!WindowShouldClose())		
 	{
 		std::fill(nextGeneration.begin(), nextGeneration.end(), false);
+		SetTargetFPS(targetFPS);
 
 		BeginDrawing();
 
-		ClearBackground(BLACK); 
+		ClearBackground(BLACK);
+		if (!IsKeyDown(KEY_SPACE)) {
+			for (int y = 0; y < gridHeight; y++) {
+				for (int x = 0; x < gridWidth; x++) {
+					if ((ReadCell(x, y, currentGeneration) && CountAliveNeighbors(x, y, currentGeneration) == 2) || CountAliveNeighbors(x, y, currentGeneration) == 3) {
+						WriteCell(x, y, true, nextGeneration);
+						DrawRectangle((int)(x * cellWidth), (int)(y * cellHeight), cellWidth, cellHeight, WHITE);
+					}
+					else {
+						WriteCell(x, y, false, nextGeneration);
+					}
+				}
+			}
 
-		for (int y = 0; y< gridHeight; ++y)
-		{
-			for (int x = 0; x< gridWidth; ++x)
-			{
-				if (readCell(x, y, currentGeneration))
-				{
-					DrawRectangle((int)(x * cellWidth), (int)(y * cellHeight), (int)cellWidth + 1, (int)cellHeight + 1, WHITE);
+			currentGeneration = nextGeneration;
+			
+		}
+		else {
+			RandomizeCells(currentGeneration);
+			for (int y = 0; y < gridHeight; y++) {
+				for (int x = 0; x < gridWidth; x++) {
+					if (ReadCell(x, y, currentGeneration)) {
+						DrawRectangle((int)(x * cellWidth), (int)(y * cellHeight), cellWidth, cellHeight, WHITE);
+					}
 				}
 			}
 		}
-
-		DrawText("Space: Randomize Cells", 20, 20, 20, BLUE);
-
-		if (IsKeyPressed(KEY_SPACE))
-		{
-			randomizeCells(currentGeneration);
-		}
-
-		DrawFPS(40, 40);
-
+		
+		DrawText("Space: Randomize", 40,20,20,WHITE);
+		DrawFPS(40, 40);	
 		EndDrawing();
 	}
 
